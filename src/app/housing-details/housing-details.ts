@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, ChangeDetectorRef, Component, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, signal, computed, resource, inject} from '@angular/core';
 import {ActivatedRoute} from '@angular/router';
 import {HousingService} from '../housing';
 import {HousingLocationInfo} from '../housing-location/housing-location-if';
@@ -11,20 +11,20 @@ import {FormControl, FormGroup, ReactiveFormsModule} from '@angular/forms';
     <article>
       <img
         class="listing-photo"
-        [src]="housingLocation?.photo"
-        alt="Exterior photo of {{ housingLocation?.name }}"
+        [src]="housingLocation().photo"
+        alt="Exterior photo of {{ housingLocation().name }}"
         crossorigin
       />
       <section class="listing-description">
-        <h2 class="listing-heading">{{ housingLocation?.name }}</h2>
-        <p class="listing-location">{{ housingLocation?.city }}, {{ housingLocation?.state }}</p>
+        <h2 class="listing-heading">{{ housingLocation().name }}</h2>
+        <p class="listing-location">{{ housingLocation().city }}, {{ housingLocation().state }}</p>
       </section>
       <section class="listing-features">
         <h2 class="section-heading">About this housing location</h2>
         <ul>
-          <li>Units available: {{ housingLocation?.availableUnits }}</li>
-          <li>Does this location have wifi: {{ housingLocation?.wifi }}</li>
-          <li>Does this location have laundry: {{ housingLocation?.laundry }}</li>
+          <li>Units available: {{ housingLocation().availableUnits }}</li>
+          <li>Does this location have wifi: {{ housingLocation().wifi }}</li>
+          <li>Does this location have laundry: {{ housingLocation().laundry }}</li>
         </ul>
       </section>
       <section class="listing-apply">
@@ -48,23 +48,18 @@ export class HousingDetails {
 
   route: ActivatedRoute = inject(ActivatedRoute)
   housingService: HousingService = inject(HousingService)
-  housingLocation: HousingLocationInfo | undefined
-
+  
   applyForm = new FormGroup({
     firstName: new FormControl(''),
     lastName: new FormControl(''),
     email: new FormControl(''),
   });
 
-  changeDetectorRef: ChangeDetectorRef = inject(ChangeDetectorRef)
-
-  constructor() {
-    const id = Number(this.route.snapshot.paramMap.get('id'))
-    this.housingService.getHousingLocationById(id).then(location => {
-      this.housingLocation = location
-      this.changeDetectorRef.markForCheck()
-    })
-  }
+  locationResource = resource({
+    params: () => ({id: Number(this.route.snapshot.paramMap.get('id'))}),
+    loader: (params) => this.housingService.getHousingLocationById(params.params.id),
+  })
+  housingLocation = computed(() => this.locationResource.value() ?? {} as HousingLocationInfo)
 
   submitApplication() {
     this.housingService.submitApplication({

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, resource, signal, inject, computed } from '@angular/core';
 import { HousingLocation } from '../housing-location/housing-location';
 import { HousingLocationInfo } from '../housing-location/housing-location-if';
 import { HousingService } from '../housing';
@@ -9,11 +9,11 @@ import { HousingService } from '../housing';
   template: `
       <section>
         <form>
-          <input type="text" placeholder="Filter by city" #filter (keyup)="filterResults(filter.value)"/>
+          <input type="text" placeholder="Filter by city" #filter (keyup)="this.filter.set(filter.value)"/>
         </form>
       </section>
       <section class="results">
-        @for (housingLocation of filteredLocations; track $index) {
+        @for (housingLocation of filteredLocations(); track $index) {
           <app-housing-location [housingLocation]="housingLocation" />
         }
       </section>
@@ -22,25 +22,21 @@ import { HousingService } from '../housing';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Home {
-
-  housingLocations: HousingLocationInfo[] = []
-  filteredLocations: HousingLocationInfo[] = []
+  
   housingService: HousingService = inject(HousingService)
-  changeDetectorRef: ChangeDetectorRef = inject(ChangeDetectorRef)
 
-  constructor() {
-    this.housingService.getAllHousingLocations().then((locations: HousingLocationInfo[]) => {
-      this.housingLocations = locations
-      this.filterResults('')
-      this.changeDetectorRef.markForCheck()
-    });
-  } 
+  filter = signal('')
 
-  filterResults(city: string) {
-    this.filteredLocations = this.housingLocations
-    if (city) {
-      this.filteredLocations = this.filteredLocations
-        .filter(h => h.city.toLowerCase().includes(city.toLowerCase()))
-    }
-  }
+  housingResource = resource({
+    loader: () => this.housingService.getAllHousingLocations(),
+  })
+
+  filteredLocations = computed(() => {
+    const housingLocations = this.housingResource.value() ?? [] as HousingLocationInfo[]
+    if (!this.filter()) 
+      return housingLocations
+    else
+      return housingLocations.filter(h => h.city.toLowerCase().includes(this.filter().toLowerCase()))
+  })
+
 }
